@@ -1,0 +1,122 @@
+# Weather banner card for Home Assistant
+# Requires: button-card (HACS)
+# Optional: the "Time & Date" integration (display option "Time") for sensor.time.
+#           Without it the clock still shows, it just refreshes less often.
+#
+# Change the three variables below, then paste into a manual card.
+
+type: custom:button-card
+entity: weather.forecast_home        # your weather entity
+variables:
+  location: London                   # text shown bottom-right
+  sun: sun.sun
+  clock: sensor.time
+show_icon: false
+show_name: false
+show_state: false
+tap_action:
+  action: more-info
+grid_options:
+  columns: full
+  rows: auto
+styles:
+  card:
+    - height: 128px
+    - padding: 16px 18px
+    - border-radius: 22px
+    - box-shadow: none
+    - border: none
+    - overflow: hidden
+    - position: relative
+  grid:
+    - grid-template-areas: '"body"'
+    - grid-template-columns: 1fr
+    - grid-template-rows: 1fr
+    - height: 100%
+  custom_fields:
+    body:
+      - justify-self: stretch
+      - align-self: stretch
+      - position: static
+custom_fields:
+  body: |
+    [[[
+      const w = entity;
+      const s = states[variables.sun];
+      const t = states[variables.clock];
+      const night = s ? s.state === 'below_horizon' : false;
+      let c = w ? w.state : 'unavailable';
+      if (c === 'sunny' && night) c = 'clear-night';
+      const temp = w && w.attributes.temperature != null ? Math.round(w.attributes.temperature) : '–';
+
+      // [label, icon, background, decoration]
+      const looks = {
+        'sunny':           ['Sunny', 'mdi:weather-sunny', 'linear-gradient(110deg,#ec6f5e,#f2a35a)', 'sun'],
+        'clear-night':     ['Clear', 'mdi:weather-night', 'linear-gradient(110deg,#1d3270,#2a4a96)', 'moon'],
+        'partlycloudy':    night
+          ? ['Partly cloudy', 'mdi:weather-night-partly-cloudy', 'linear-gradient(110deg,#22305a,#33487c)', 'cloud']
+          : ['Partly cloudy', 'mdi:weather-partly-cloudy', 'linear-gradient(110deg,#3a8be6,#5ba8f2)', 'cloud'],
+        'cloudy':          night
+          ? ['Cloudy', 'mdi:weather-cloudy', 'linear-gradient(110deg,#28324d,#3a4766)', 'cloud']
+          : ['Cloudy', 'mdi:weather-cloudy', 'linear-gradient(110deg,#6385ad,#86a3c6)', 'cloud'],
+        'fog':             ['Fog', 'mdi:weather-fog', 'linear-gradient(110deg,#6f7c8c,#9aa6b4)', 'cloud'],
+        'rainy':           ['Rain', 'mdi:weather-rainy', 'linear-gradient(110deg,#2a3358,#40497a)', 'rain'],
+        'pouring':         ['Heavy rain', 'mdi:weather-pouring', 'linear-gradient(110deg,#232a4a,#363f6b)', 'rain'],
+        'lightning':       ['Storm', 'mdi:weather-lightning', 'linear-gradient(110deg,#33285a,#4a3c78)', 'rain'],
+        'lightning-rainy': ['Storm', 'mdi:weather-lightning-rainy', 'linear-gradient(110deg,#33285a,#4a3c78)', 'rain'],
+        'snowy':           night
+          ? ['Snow', 'mdi:weather-snowy', 'linear-gradient(110deg,#1b2b52,#26386a)', 'snow']
+          : ['Snow', 'mdi:weather-snowy', 'linear-gradient(110deg,#f0a052,#f6bd72)', 'snow'],
+        'snowy-rainy':     ['Sleet', 'mdi:weather-snowy-rainy', 'linear-gradient(110deg,#4b5d82,#6a7fa6)', 'snow'],
+        'hail':            ['Hail', 'mdi:weather-hail', 'linear-gradient(110deg,#4b5d82,#6a7fa6)', 'snow'],
+        'windy':           ['Windy', 'mdi:weather-windy', 'linear-gradient(110deg,#3b9aa0,#62bcc0)', 'cloud'],
+        'windy-variant':   ['Windy', 'mdi:weather-windy-variant', 'linear-gradient(110deg,#3b9aa0,#62bcc0)', 'cloud'],
+        'exceptional':     ['Alert', 'mdi:alert-circle-outline', 'linear-gradient(110deg,#a8443c,#c9624f)', ''],
+      };
+      const [label, icon, bg, kind] = looks[c] ||
+        ['Unavailable', 'mdi:cloud-off-outline', 'linear-gradient(110deg,#2a3346,#3a4458)', ''];
+
+      // background shapes
+      const shape = (css) => `<div style="position:absolute;pointer-events:none;${css}"></div>`;
+      let deco = '';
+      if (kind === 'sun' || kind === 'moon') {
+        deco = shape('right:-70px;top:-150px;width:340px;height:340px;border-radius:50%;background:rgba(255,255,255,0.07);')
+             + shape('right:-20px;top:-100px;width:230px;height:230px;border-radius:50%;background:rgba(255,255,255,0.08);')
+             + shape(`right:24px;top:-56px;width:120px;height:120px;border-radius:50%;opacity:.92;background:${kind === 'sun' ? '#f6d55c' : '#f3dc8a'};`);
+      } else if (kind === 'cloud') {
+        deco = shape('right:-60px;top:-70px;width:420px;height:140px;border-radius:50%;background:rgba(255,255,255,0.12);')
+             + shape('right:-90px;bottom:-80px;width:460px;height:150px;border-radius:50%;background:rgba(255,255,255,0.09);')
+             + shape('right:120px;top:-40px;width:200px;height:110px;border-radius:50%;background:rgba(255,255,255,0.06);');
+      } else if (kind === 'rain') {
+        deco = shape('right:-40px;top:-60px;width:420px;height:120px;border-radius:50%;background:rgba(255,255,255,0.07);')
+             + shape('left:35%;right:0;top:0;bottom:0;background:repeating-linear-gradient(110deg,transparent 0 14px,rgba(255,255,255,0.10) 14px 15px,transparent 15px 31px);');
+      } else if (kind === 'snow') {
+        const flakes = [[52,18,6],[64,62,4],[72,30,8],[80,78,5],[88,20,4],[58,82,7],[94,52,6],[68,46,3],[84,40,9],[76,12,4],[90,86,5],[62,34,5]];
+        deco = flakes.map(([x, y, d]) =>
+          shape(`left:${x}%;top:${y}%;width:${d}px;height:${d}px;border-radius:50%;background:rgba(255,255,255,0.75);`)).join('');
+      }
+
+      const now = new Date();
+      const pad = (n) => ('0' + n).slice(-2);
+      const day = ['SUN','MON','TUE','WED','THU','FRI','SAT'][now.getDay()];
+      const date = `${day}&nbsp;&nbsp;${pad(now.getDate())}-${pad(now.getMonth() + 1)}`;
+      const clock = t && t.state && t.state !== 'unavailable' ? t.state : `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+      return `
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:${bg};">${deco}</div>
+        <div style="position:relative;display:flex;justify-content:space-between;height:100%;color:#fff;text-align:left;">
+          <div style="display:flex;flex-direction:column;justify-content:space-between;">
+            <div style="display:flex;align-items:center;font-size:17px;">
+              <ha-icon icon="${icon}" style="--mdc-icon-size:22px;margin:0 6px 0 0;"></ha-icon>${label}
+            </div>
+            <div style="font-size:46px;font-weight:300;line-height:1;">${temp}°</div>
+          </div>
+          <div style="display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;text-align:right;">
+            <div>
+              <div style="font-size:24px;line-height:1.1;">${clock}</div>
+              <div style="font-size:12px;margin-top:3px;opacity:.92;">${date}</div>
+            </div>
+            <div style="font-size:12px;opacity:.92;">${variables.location}</div>
+          </div>
+        </div>`;
+    ]]]
